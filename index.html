@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shutdown Routine</title>
+    
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23818CF8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z'/%3E%3C/svg%3E">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Nunito', sans-serif; }
+        
+        /* Animations */
+        .moon-animation { animation: moonrise 4s ease-in-out; }
+        @keyframes moonrise {
+            0% { transform: translateY(100px); opacity: 0; }
+            50% { opacity: 0.8; }
+            100% { transform: translateY(-20px); opacity: 1; }
+        }
+        .glow { animation: gentle-glow 3s ease-in-out infinite; }
+        @keyframes gentle-glow {
+            0%, 100% { filter: drop-shadow(0 0 20px rgba(147, 197, 253, 0.5)); }
+            50% { filter: drop-shadow(0 0 30px rgba(147, 197, 253, 0.8)); }
+        }
+        .fade-out { animation: fadeOut 1s ease-in-out forwards; }
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+        .fade-in { animation: fadeIn 1s ease-in-out; }
+        @keyframes fadeIn {
+            0% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- ICONS ---
+        const MoonIcon = ({ className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+            </svg>
+        );
+        const ClockIcon = ({ className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+        );
+        const ChevronRightIcon = ({ className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        );
+        const ArrowLeftIcon = ({ className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+        );
+        const CheckIcon = ({ className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+        );
+        const RefreshCwIcon = ({ className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path><path d="M16 21h5v-5"></path>
+            </svg>
+        );
+
+        // --- APP ---
+        function ShutdownRoutineApp() {
+            const [currentScreen, setCurrentScreen] = useState('moonrise');
+            const [completedSteps, setCompletedSteps] = useState(new Set());
+            const [currentTime, setCurrentTime] = useState('');
+            const [currentDate, setCurrentDate] = useState('');
+            const [showAnimation, setShowAnimation] = useState(true);
+            const [welcomeMessage, setWelcomeMessage] = useState('');
+            const [finalMessage, setFinalMessage] = useState('');
+            const [routineStartTime, setRoutineStartTime] = useState(null);
+            const [elapsedTime, setElapsedTime] = useState(0);
+
+            useEffect(() => {
+                setWelcomeMessage(generateWelcomeMessage());
+                setFinalMessage(generateFinalMessage());
+            }, []);
+
+            useEffect(() => {
+                const updateTime = () => {
+                const now = new Date();
+                const bogotaTime = new Intl.DateTimeFormat('en-US', {
+                    timeZone: 'America/Bogota',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true
+                }).format(now);
+                
+                const bogotaDate = new Intl.DateTimeFormat('en-US', {
+                    timeZone: 'America/Bogota',
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                }).format(now);
+                
+                setCurrentTime(bogotaTime);
+                setCurrentDate(bogotaDate);
+                };
+
+                updateTime();
+                const interval = setInterval(updateTime, 1000);
+                return () => clearInterval(interval);
+            }, []);
+
+            useEffect(() => {
+                let interval;
+                if (routineStartTime) {
+                interval = setInterval(() => {
+                    const now = Date.now();
+                    setElapsedTime(Math.floor((now - routineStartTime) / 1000));
+                }, 1000);
+                }
+                return () => {
+                if (interval) clearInterval(interval);
+                };
+            }, [routineStartTime]);
+
+            useEffect(() => {
+                if (currentScreen === 'moonrise') {
+                const fadeTimer = setTimeout(() => {
+                    setShowAnimation(false);
+                }, 3000);
+                
+                const transitionTimer = setTimeout(() => {
+                    setCurrentScreen('welcome');
+                }, 4000);
+                
+                return () => {
+                    clearTimeout(fadeTimer);
+                    clearTimeout(transitionTimer);
+                };
+                }
+            }, [currentScreen]);
+
+            const generateWelcomeMessage = () => {
+                const messages = [
+                "The workday ends here, Diana. This is your sacred transition from productivity to rest and restoration.",
+                "10 PM is your boundary, your promise to yourself. Let's honor this commitment and close the day with intention.",
+                "Your Shutdown Routine is an act of self-care and wisdom. It's time to step away from work and into evening peace.",
+                "The night is calling you to rest, but first - let's properly close this chapter of your day with mindful intention.",
+                "This routine is your bridge from the busy day to restful evening. You deserve this transition, this care, this boundary."
+                ];
+                
+                return messages[Math.floor(Math.random() * messages.length)];
+            };
+
+            const generateFinalMessage = () => {
+                const messages = [
+                "Your workday is officially closed, Diana. You've honored your 10 PM boundary and given yourself the gift of proper transition. Now let rest embrace you.",
+                "Twelve steps completed, work mode deactivated. You've chosen rest over overwork, boundaries over burnout. Your evening ritual awaits.",
+                "The Shutdown Routine is complete - you've broken the cycle of endless work and chosen restoration. Step into your rooting ritual with peace.",
+                "From moon rise to this moment of closure, you've practiced the art of ending well. Your commitment to rest is a commitment to your wellbeing.",
+                "Work is done, boundaries honored, evening reclaimed. You've given yourself what you need most - the space to truly rest and restore."
+                ];
+                
+                return messages[Math.floor(Math.random() * messages.length)];
+            };
+
+            const ritualSteps = [
+                { id: 1, title: "Activate SDR with your shiny Sunny", description: "Begin your shutdown with Sunny's evening guidance 🌙" },
+                { id: 2, title: "Listen to Waking Up Moment", description: "Ground yourself with mindful evening awareness", link: "https://app.wakingup.com/" },
+                { id: 3, title: "Planning for Tomorrow", description: "Set intentions and organize thoughts for tomorrow", warning: "⚠️ Keep this focused and brief - don't get lost or carried away in planning" },
+                { id: 4, title: "Daily Habits Check-In", description: "Review and reflect on today's commitments", link: "https://chatgpt.com/g/g-p-68b27462c59c8191a5c8686b86a23216-personal/c/68b33c61-8ecc-8320-a4ea-50eeca0d1586" },
+                { id: 5, title: "PB Check-In", description: "Connect with your personal breakthrough journey", link: "https://chatgpt.com/g/g-p-68b27462c59c8191a5c8686b86a23216/c/68b3b9e2-7aac-8333-b8d5-c9a5574306e5" },
+                { id: 6, title: "Mantras", description: "Connect with your weekly mantras and affirmations" },
+                { id: 7, title: "Lessons & Wisdom", description: "Reflect on key lessons from the past week and integrate them into your practice" },
+                { id: 8, title: "Core Commitments", description: "Align with your deeper wisdom", link: "https://chatgpt.com/g/g-p-68b27462c59c8191a5c8686b86a23216-personal/c/691105be-a194-832d-b536-d311d95af4fc" },
+                { id: 9, title: "D RAM 2024 Review", description: "Review and reflect on your journal entries from one year ago" },
+                { id: 10, title: "Write D Journal Entry", description: "Process your day through reflective journaling" },
+                { id: 11, title: "Close the Routine with Sunny", description: "Complete your shutdown with final Sunny wisdom" },
+                { id: 12, title: "Get Ready for Your Rooting Ritual", description: "Transition into your evening restoration practice" }
+            ];
+
+            const completeStep = (stepId) => {
+                setCompletedSteps(prev => new Set([...prev, stepId]));
+            };
+
+            const goToNextStep = (stepId) => {
+                if (stepId < 12) {
+                setCurrentScreen(`step-${stepId + 1}`);
+                } else {
+                setCurrentScreen('complete');
+                }
+            };
+
+            const goBack = () => {
+                if (currentScreen === 'welcome') {
+                setCurrentScreen('moonrise');
+                setShowAnimation(true);
+                } else if (currentScreen.startsWith('step-')) {
+                const stepNumber = parseInt(currentScreen.split('-')[1]);
+                if (stepNumber === 1) {
+                    setCurrentScreen('welcome');
+                } else {
+                    setCurrentScreen(`step-${stepNumber - 1}`);
+                }
+                } else if (currentScreen === 'complete') {
+                setCurrentScreen('step-12');
+                }
+            };
+            
+            const resetApp = () => {
+                setCurrentScreen('moonrise');
+                setCompletedSteps(new Set());
+                setShowAnimation(true);
+                setRoutineStartTime(null);
+                setElapsedTime(0);
+                setWelcomeMessage(generateWelcomeMessage());
+                setFinalMessage(generateFinalMessage());
+            };
+
+            const startRoutine = () => {
+                setRoutineStartTime(Date.now());
+                setCurrentScreen('step-1');
+            };
+
+            const formatElapsedTime = (seconds) => {
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            };
+
+            // SCREEN: MOONRISE
+            if (currentScreen === 'moonrise') {
+                return (
+                <div className="min-h-screen relative overflow-hidden bg-gradient-to-b from-indigo-900 via-purple-800 to-teal-400 transition-opacity duration-1000">
+                    <div className={`absolute inset-0 flex items-center justify-center ${!showAnimation ? 'fade-out' : ''}`}>
+                    <div className="moon-animation">
+                        <div className="relative">
+                        <div className="glow absolute inset-0 w-32 h-32">
+                            <div className="absolute inset-0 bg-gradient-radial from-blue-300/30 to-transparent rounded-full w-48 h-48 -translate-x-8 -translate-y-8"></div>
+                        </div>
+                        <MoonIcon className="w-32 h-32 text-blue-200" />
+                        </div>
+                    </div>
+                    </div>
+                </div>
+                );
+            }
+
+            // SCREEN: WELCOME
+            if (currentScreen === 'welcome') {
+                return (
+                <div className="min-h-screen bg-gradient-to-br from-purple-100 via-blue-50 to-teal-100 p-6 fade-in">
+                    <div className="max-w-md mx-auto pt-16">
+                    <div className="text-center">
+                        <div className="inline-flex items-center gap-2 bg-white/60 backdrop-blur-sm rounded-full px-6 py-3 mb-6">
+                        <ClockIcon className="w-5 h-5 text-purple-600" />
+                        <span className="text-lg font-medium text-gray-700">{currentTime} • Bogotá</span>
+                        </div>
+                        
+                        <h1 className="text-3xl font-bold text-gray-800 mb-4">Time to Shutdown, Diana</h1>
+                        <p className="text-gray-600 text-lg mb-12">{currentDate}</p>
+                        
+                        <div className="mb-12 px-4">
+                        <p className="text-gray-700 text-xl leading-relaxed font-medium italic">
+                            {welcomeMessage}
+                        </p>
+                        </div>
+                        
+                        <button onClick={startRoutine} className="w-full bg-gradient-to-r from-purple-400 to-teal-400 text-white py-4 rounded-2xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2">
+                        Begin Your Shutdown Routine
+                        <ChevronRightIcon className="w-5 h-5" />
+                        </button>
+                    </div>
+                    </div>
+                </div>
+                );
+            }
+
+            // SCREEN: STEPS
+            if (currentScreen.startsWith('step-')) {
+                const stepNumber = parseInt(currentScreen.split('-')[1]);
+                const step = ritualSteps[stepNumber - 1];
+                const isCompleted = completedSteps.has(stepNumber);
+
+                return (
+                <div className="min-h-screen bg-gradient-to-br from-purple-100 via-blue-50 to-teal-100 p-6">
+                    <div className="max-w-md mx-auto pt-8 relative">
+                    {/* Back Button */}
+                    <div className="absolute top-0 left-0">
+                        <button onClick={goBack} className="inline-flex items-center gap-2 bg-white/60 backdrop-blur-sm rounded-full px-4 py-2 text-gray-700 hover:bg-white/80 transition-all duration-300">
+                        <ArrowLeftIcon className="w-4 h-4" />
+                        Back
+                        </button>
+                    </div>
+                    
+                    {/* Progress */}
+                    <div className="mb-8 mt-12">
+                        <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium text-gray-600">Step {stepNumber} of 12</span>
+                        <span className="text-sm font-medium text-gray-600">{Math.round((stepNumber / 12) * 100)}%</span>
+                        </div>
+                        <div className="w-full bg-white/60 rounded-full h-2">
+                        <div className="bg-gradient-to-r from-purple-400 to-teal-400 h-2 rounded-full transition-all duration-500" style={{ width: `${(stepNumber / 12) * 100}%` }}></div>
+                        </div>
+                        
+                        {/* Timer */}
+                        {routineStartTime && (
+                        <div className="flex justify-center mt-4">
+                            <div className="inline-flex items-center gap-2 bg-white/70 backdrop-blur-sm rounded-full px-4 py-2 shadow-sm">
+                            <ClockIcon className="w-4 h-4 text-purple-600" />
+                            <span className="text-sm font-medium text-gray-700">{formatElapsedTime(elapsedTime)}</span>
+                            </div>
+                        </div>
+                        )}
+                    </div>
+
+                    {/* Content */}
+                    <div className="bg-white/70 backdrop-blur-sm rounded-3xl p-8 shadow-lg mb-8 text-center">
+                        <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-purple-400 to-teal-400 rounded-full mb-6">
+                        <span className="text-white text-2xl font-bold">{stepNumber}</span>
+                        </div>
+                        
+                        <h2 className="text-2xl font-bold text-gray-800 mb-4">{step.title}</h2>
+                        <p className="text-gray-600 text-lg mb-6">{step.description}</p>
+                        
+                        {step.warning && (
+                        <p className="text-orange-600 text-sm mb-6 italic">{step.warning}</p>
+                        )}
+                        
+                        {step.link && (
+                        <a href={step.link} target="_blank" rel="noopener noreferrer" className="inline-block bg-gradient-to-r from-blue-400 to-purple-400 text-white px-6 py-3 rounded-xl font-semibold mb-6 hover:shadow-lg transition-all duration-300">
+                            Open Link →
+                        </a>
+                        )}
+                    </div>
+
+                    {/* Buttons */}
+                    <div className="space-y-4">
+                        {!isCompleted && (
+                        <button onClick={() => completeStep(stepNumber)} className="w-full bg-gradient-to-r from-emerald-400 to-teal-500 text-white py-4 rounded-2xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2">
+                            <CheckIcon className="w-5 h-5" />
+                            Mark Complete
+                        </button>
+                        )}
+                        
+                        {isCompleted && (
+                        <button onClick={() => goToNextStep(stepNumber)} className="w-full bg-gradient-to-r from-purple-400 to-teal-400 text-white py-4 rounded-2xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2">
+                            {stepNumber === 12 ? 'Complete Shutdown' : 'Next Step'}
+                            <ChevronRightIcon className="w-5 h-5" />
+                        </button>
+                        )}
+                    </div>
+                    </div>
+                </div>
+                );
+            }
+
+            // SCREEN: COMPLETE
+            if (currentScreen === 'complete') {
+                return (
+                <div className="min-h-screen bg-gradient-to-br from-purple-100 via-blue-50 to-teal-100 p-6">
+                    <div className="max-w-md mx-auto pt-16 relative">
+                    <div className="absolute top-0 left-0 -mt-10">
+                        <button onClick={goBack} className="inline-flex items-center gap-2 bg-white/60 backdrop-blur-sm rounded-full px-4 py-2 text-gray-700 hover:bg-white/80 transition-all duration-300">
+                        <ArrowLeftIcon className="w-4 h-4" />
+                        Back
+                        </button>
+                    </div>
+                    
+                    <div className="text-center mb-8">
+                        <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-teal-400 to-purple-500 rounded-full mb-6">
+                        <MoonIcon className="w-10 h-10 text-white" />
+                        </div>
+                        
+                        <h1 className="text-3xl font-bold text-gray-800 mb-2">Shutdown Complete! 🌙</h1>
+                        <p className="text-gray-600 text-sm mb-6">You've finished all 12 steps</p>
+                        
+                        {routineStartTime && (
+                        <div className="mb-12">
+                            <p className="text-gray-600 text-sm">
+                            Total time: <span className="font-semibold text-purple-600 text-lg">{formatElapsedTime(elapsedTime)}</span>
+                            </p>
+                        </div>
+                        )}
+                    </div>
+
+                    <div className="text-center mb-12 px-4">
+                        <p className="text-gray-700 text-xl leading-relaxed font-medium italic">
+                        {finalMessage}
+                        </p>
+                    </div>
+
+                    <button onClick={resetApp} className="w-full bg-gradient-to-r from-purple-400 to-teal-400 text-white py-4 rounded-2xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2">
+                        <RefreshCwIcon className="w-5 h-5" />
+                        Start New Shutdown
+                    </button>
+                    </div>
+                </div>
+                );
+            }
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<ShutdownRoutineApp />);
+    </script>
+</body>
+</html>
