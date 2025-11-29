@@ -168,7 +168,7 @@
             const generateFinalMessage = () => {
                 const messages = [
                 "Your workday is officially closed, Diana. You've honored your 10 PM boundary and given yourself the gift of proper transition. Now let rest embrace you.",
-                "Twelve steps completed, work mode deactivated. You've chosen rest over overwork, boundaries over burnout. Your evening ritual awaits.",
+                "Eleven steps completed, work mode deactivated. You've chosen rest over overwork, boundaries over burnout. Your evening ritual awaits.",
                 "The Shutdown Routine is complete - you've broken the cycle of endless work and chosen restoration. Step into your rooting ritual with peace.",
                 "From moon rise to this moment of closure, you've practiced the art of ending well. Your commitment to rest is a commitment to your wellbeing.",
                 "Work is done, boundaries honored, evening reclaimed. You've given yourself what you need most - the space to truly rest and restore."
@@ -181,15 +181,14 @@
                 { id: 1, title: "Activate SDR with your shiny Sunny", description: "Begin your shutdown with Sunny's evening guidance 🌙" },
                 { id: 2, title: "Listen to Waking Up Moment", description: "Ground yourself with mindful evening awareness", link: "https://app.wakingup.com/" },
                 { id: 3, title: "Planning for Tomorrow", description: "Set intentions and organize thoughts for tomorrow", warning: "⚠️ Keep this focused and brief - don't get lost or carried away in planning" },
-                { id: 4, title: "Daily Habits Check-In", description: "Review and reflect on today's commitments", link: "https://chatgpt.com/g/g-p-68b27462c59c8191a5c8686b86a23216-personal/c/68b33c61-8ecc-8320-a4ea-50eeca0d1586" },
-                { id: 5, title: "PB Check-In", description: "Connect with your personal breakthrough journey", link: "https://chatgpt.com/g/g-p-68b27462c59c8191a5c8686b86a23216/c/68b3b9e2-7aac-8333-b8d5-c9a5574306e5" },
-                { id: 6, title: "Mantras", description: "Connect with your weekly mantras and affirmations" },
-                { id: 7, title: "Lessons & Wisdom", description: "Reflect on key lessons from the past week and integrate them into your practice" },
-                { id: 8, title: "Core Commitments", description: "Align with your deeper wisdom", link: "https://chatgpt.com/g/g-p-68b27462c59c8191a5c8686b86a23216-personal/c/691105be-a194-832d-b536-d311d95af4fc" },
-                { id: 9, title: "D RAM 2024 Review", description: "Review and reflect on your journal entries from one year ago" },
-                { id: 10, title: "Write D Journal Entry", description: "Process your day through reflective journaling" },
-                { id: 11, title: "Close the Routine with Sunny", description: "Complete your shutdown with final Sunny wisdom" },
-                { id: 12, title: "Get Ready for Your Rooting Ritual", description: "Transition into your evening restoration practice" }
+                { id: 4, title: "Daily Check-In", description: "Review daily habits and personal breakthrough commitments", link: "https://dicaguca.github.io/tracker" },
+                { id: 5, title: "Mantras", description: "Connect with your weekly mantras and affirmations" },
+                { id: 6, title: "Lessons & Wisdom", description: "Reflect on key lessons from the past week and integrate them into your practice" },
+                { id: 7, title: "Core Commitments", description: "Align with your deeper wisdom", link: "https://chatgpt.com/g/g-p-68b27462c59c8191a5c8686b86a23216-personal/c/691105be-a194-832d-b536-d311d95af4fc" },
+                { id: 8, title: "D RAM 2024 Review", description: "Review and reflect on your journal entries from one year ago" },
+                { id: 9, title: "Write D Journal Entry", description: "Process your day through reflective journaling" },
+                { id: 10, title: "Close the Routine with Sunny", description: "Complete your shutdown with final Sunny wisdom" },
+                { id: 11, title: "Get Ready for Your Rooting Ritual", description: "Transition into your evening restoration practice" }
             ];
 
             const completeStep = (stepId) => {
@@ -197,7 +196,7 @@
             };
 
             const goToNextStep = (stepId) => {
-                if (stepId < 12) {
+                if (stepId < 11) {
                 setCurrentScreen(`step-${stepId + 1}`);
                 } else {
                 setCurrentScreen('complete');
@@ -216,7 +215,7 @@
                     setCurrentScreen(`step-${stepNumber - 1}`);
                 }
                 } else if (currentScreen === 'complete') {
-                setCurrentScreen('step-12');
+                setCurrentScreen('step-11');
                 }
             };
             
@@ -294,6 +293,7 @@
                 const stepNumber = parseInt(currentScreen.split('-')[1]);
                 const step = ritualSteps[stepNumber - 1];
                 const isCompleted = completedSteps.has(stepNumber);
+                const totalSteps = 11;
 
                 return (
                 <div className="min-h-screen bg-gradient-to-br from-purple-100 via-blue-50 to-teal-100 p-6">
@@ -309,11 +309,11 @@
                     {/* Progress */}
                     <div className="mb-8 mt-12">
                         <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium text-gray-600">Step {stepNumber} of 12</span>
-                        <span className="text-sm font-medium text-gray-600">{Math.round((stepNumber / 12) * 100)}%</span>
+                        <span className="text-sm font-medium text-gray-600">Step {stepNumber} of {totalSteps}</span>
+                        <span className="text-sm font-medium text-gray-600">{Math.round((stepNumber / totalSteps) * 100)}%</span>
                         </div>
                         <div className="w-full bg-white/60 rounded-full h-2">
-                        <div className="bg-gradient-to-r from-purple-400 to-teal-400 h-2 rounded-full transition-all duration-500" style={{ width: `${(stepNumber / 12) * 100}%` }}></div>
+                        <div className="bg-gradient-to-r from-purple-400 to-teal-400 h-2 rounded-full transition-all duration-500" style={{ width: `${(stepNumber / totalSteps) * 100}%` }}></div>
                         </div>
                         
                         {/* Timer */}
@@ -358,7 +358,7 @@
                         
                         {isCompleted && (
                         <button onClick={() => goToNextStep(stepNumber)} className="w-full bg-gradient-to-r from-purple-400 to-teal-400 text-white py-4 rounded-2xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2">
-                            {stepNumber === 12 ? 'Complete Shutdown' : 'Next Step'}
+                            {stepNumber === totalSteps ? 'Complete Shutdown' : 'Next Step'}
                             <ChevronRightIcon className="w-5 h-5" />
                         </button>
                         )}
@@ -386,7 +386,7 @@
                         </div>
                         
                         <h1 className="text-3xl font-bold text-gray-800 mb-2">Shutdown Complete! 🌙</h1>
-                        <p className="text-gray-600 text-sm mb-6">You've finished all 12 steps</p>
+                        <p className="text-gray-600 text-sm mb-6">You've finished all 11 steps</p>
                         
                         {routineStartTime && (
                         <div className="mb-12">
