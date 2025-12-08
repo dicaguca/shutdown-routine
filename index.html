@@ -299,15 +299,15 @@
                 <div className="min-h-screen bg-gradient-to-br from-purple-100 via-blue-50 to-teal-100 p-6">
                     <div className="max-w-md mx-auto pt-8 relative">
                     {/* Back Button - FIXED POSITIONING */}
-                    <div className="absolute top-0 left-0 **mt-2 ml-2**">
+                    <div className="absolute top-6 left-6 z-10">
                         <button onClick={goBack} className="inline-flex items-center gap-2 bg-white/60 backdrop-blur-sm rounded-full px-4 py-2 text-gray-700 hover:bg-white/80 transition-all duration-300">
                         <ArrowLeftIcon className="w-4 h-4" />
                         Back
                         </button>
                     </div>
                     
-                    {/* Progress - Adjusted mt to ensure content clears the back button */}
-                    <div className="mb-8 **mt-20**">
+                    {/* Progress - Adjusted pt to ensure content clears the back button */}
+                    <div className="mb-8 pt-12">
                         <div className="flex justify-between items-center mb-2">
                         <span className="text-sm font-medium text-gray-600">Step {stepNumber} of {totalSteps}</span>
                         <span className="text-sm font-medium text-gray-600">{Math.round((stepNumber / totalSteps) * 100)}%</span>
@@ -372,9 +372,9 @@
             if (currentScreen === 'complete') {
                 return (
                 <div className="min-h-screen bg-gradient-to-br from-purple-100 via-blue-50 to-teal-100 p-6">
-                    <div className="max-w-md mx-auto pt-16 relative">
+                    <div className="max-w-md mx-auto pt-20 relative">
                     {/* Back Button - FIXED POSITIONING */}
-                    <div className="absolute top-0 left-0 **mt-2 ml-2**">
+                    <div className="absolute top-6 left-6">
                         <button onClick={goBack} className="inline-flex items-center gap-2 bg-white/60 backdrop-blur-sm rounded-full px-4 py-2 text-gray-700 hover:bg-white/80 transition-all duration-300">
                         <ArrowLeftIcon className="w-4 h-4" />
                         Back
