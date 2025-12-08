@@ -385,7 +385,7 @@
                         <MoonIcon className="w-10 h-10 text-white" />
                         </div>
                         
-                        <h1 className="text-3xl font-bold text-gray-800 mb-2">Shutdown Complete! 🌙</h1>
+                        <h1 className="text-3xl font-bold text-gray-800 mb-2">Shutdown Complete! </h1>
                         <p className="text-gray-600 text-lg mb-6">You've finished all 11 steps</p>
                         
                         {routineStartTime && (
@@ -398,14 +398,14 @@
                     </div>
 
                     <div className="text-center mb-12 px-4">
-                        <p className="text-gray-700 text-xl leading-relaxed font-medium italic">
+                        <p className="text-gray-700 text-xl leading-relaxed font-medium">
                         {finalMessage}
                         </p>
                     </div>
 
                     <button onClick={resetApp} className="w-full bg-gradient-to-r from-purple-400 to-teal-400 text-white py-4 rounded-2xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2">
                         <RefreshCwIcon className="w-5 h-5" />
-                        Start New Shutdown
+                        Start New Shutdown Routine
                     </button>
                     </div>
                 </div>
@@ -418,6 +418,7 @@
     </script>
 </body>
 </html>
+
 
 
 
