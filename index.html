@@ -134,6 +134,43 @@
             { label: 'XL', value: '6' }
         ];
 
+        const TOTAL_STEPS = 11;
+
+        const getScreenFromHash = (hash = window.location.hash) => {
+            const normalized = (hash || '').replace(/^#/, '').trim().toLowerCase();
+
+            if (!normalized || normalized === '/' || normalized === '/moonrise') {
+                return 'moonrise';
+            }
+            if (normalized === '/welcome') return 'welcome';
+            if (normalized === '/complete') return 'complete';
+
+            const stepMatch = normalized.match(/^\/step(\d+)$/);
+            if (stepMatch) {
+                const stepNumber = parseInt(stepMatch[1], 10);
+                if (stepNumber >= 1 && stepNumber <= TOTAL_STEPS) {
+                    return `step-${stepNumber}`;
+                }
+            }
+
+            return 'moonrise';
+        };
+
+        const getHashFromScreen = (screen) => {
+            if (!screen || screen === 'moonrise') return '#/';
+            if (screen === 'welcome') return '#/welcome';
+            if (screen === 'complete') return '#/complete';
+
+            if (screen.startsWith('step-')) {
+                const stepNumber = parseInt(screen.split('-')[1], 10);
+                if (stepNumber >= 1 && stepNumber <= TOTAL_STEPS) {
+                    return `#/step${stepNumber}`;
+                }
+            }
+
+            return '#/';
+        };
+
         const normalizeEditorHtml = (html) => {
             if (!html) return '';
             const trimmed = html.replace(/\u200B/g, '').trim();
@@ -471,7 +508,7 @@
 
         // --- APP ---
         function ShutdownRoutineApp() {
-            const [currentScreen, setCurrentScreen] = useState('moonrise');
+            const [currentScreen, setCurrentScreen] = useState(() => getScreenFromHash());
             const [completedSteps, setCompletedSteps] = useState(new Set());
             const [currentTime, setCurrentTime] = useState('');
             const [currentDate, setCurrentDate] = useState('');
@@ -530,6 +567,7 @@
 
             useEffect(() => {
                 if (currentScreen === 'moonrise') {
+                setShowAnimation(true);
                 const fadeTimer = setTimeout(() => {
                     setShowAnimation(false);
                 }, 3000);
@@ -542,6 +580,22 @@
                     clearTimeout(fadeTimer);
                     clearTimeout(transitionTimer);
                 };
+                }
+            }, [currentScreen]);
+
+            useEffect(() => {
+                const handleHashChange = () => {
+                    setCurrentScreen(getScreenFromHash());
+                };
+
+                window.addEventListener('hashchange', handleHashChange);
+                return () => window.removeEventListener('hashchange', handleHashChange);
+            }, []);
+
+            useEffect(() => {
+                const nextHash = getHashFromScreen(currentScreen);
+                if (window.location.hash !== nextHash) {
+                    window.location.hash = nextHash;
                 }
             }, [currentScreen]);
 
@@ -588,7 +642,7 @@
             };
 
             const goToNextStep = (stepId) => {
-                if (stepId < 11) {
+                if (stepId < TOTAL_STEPS) {
                 setCurrentScreen(`step-${stepId + 1}`);
                 } else {
                 setCurrentScreen('complete');
@@ -607,7 +661,7 @@
                     setCurrentScreen(`step-${stepNumber - 1}`);
                 }
                 } else if (currentScreen === 'complete') {
-                setCurrentScreen('step-11');
+                setCurrentScreen(`step-${TOTAL_STEPS}`);
                 }
             };
             
@@ -698,7 +752,7 @@
                 const stepNumber = parseInt(currentScreen.split('-')[1]);
                 const step = ritualSteps[stepNumber - 1];
                 const isCompleted = completedSteps.has(stepNumber);
-                const totalSteps = 11;
+                const totalSteps = TOTAL_STEPS;
                 const hasModal = Boolean(MODAL_STEP_CONFIG[stepNumber]);
 
                 return (
