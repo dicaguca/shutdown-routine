@@ -60,10 +60,22 @@
             margin-bottom: 8pt;
         }
         .editor-surface p[data-spacing="l"] {
-            margin-bottom: 10pt;
+            margin-bottom: 16pt;
         }
         .editor-surface p[data-spacing="xl"] {
             margin-bottom: 12pt;
+        }
+        .editor-surface-relaxed p {
+            margin: 0 0 1rem;
+        }
+        .editor-surface-relaxed p[data-spacing="m"] {
+            margin-bottom: 12pt;
+        }
+        .editor-surface-relaxed p[data-spacing="l"] {
+            margin-bottom: 14pt;
+        }
+        .editor-surface-relaxed p[data-spacing="xl"] {
+            margin-bottom: 16pt;
         }
         .editor-surface p:last-child {
             margin-bottom: 0;
@@ -122,7 +134,8 @@
                 title: 'Lessons & Wisdom',
                 headerLabel: 'SHUTDOWN ROUTINE ⋆ LESSONS',
                 storageKey: STORAGE_KEYS.lessons,
-                placeholder: 'Capture your lessons, insights, and wisdom here...'
+                placeholder: 'Capture your lessons, insights, and wisdom here...',
+                editorClassName: 'editor-surface-relaxed'
             }
         };
 
@@ -353,7 +366,7 @@
             </svg>
         );
 
-        const RichTextModal = ({ isOpen, title, headerLabel, storageKey, starterContent, placeholder, onClose }) => {
+        const RichTextModal = ({ isOpen, title, headerLabel, storageKey, starterContent, placeholder, editorClassName = '', onClose }) => {
             const editorRef = useRef(null);
             const selectionRef = useRef(null);
             const [isEmpty, setIsEmpty] = useState(false);
@@ -490,7 +503,7 @@
                                     ref={editorRef}
                                     contentEditable
                                     suppressContentEditableWarning
-                                    className={`editor-surface h-full overflow-y-auto rounded-2xl px-4 py-4 text-base text-gray-700 sm:px-5 sm:py-5 ${isEmpty ? 'editor-empty' : ''}`}
+                                    className={`editor-surface ${editorClassName} h-full overflow-y-auto rounded-2xl px-4 py-4 text-base text-gray-700 sm:px-5 sm:py-5 ${isEmpty ? 'editor-empty' : ''}`}
                                     data-placeholder={placeholder}
                                     onInput={persistEditorContent}
                                     onKeyDown={handleEditorKeyDown}
@@ -847,6 +860,7 @@
                     storageKey={activeModalConfig.storageKey}
                     starterContent={STARTER_CONTENT[activeModalConfig.key]}
                     placeholder={activeModalConfig.placeholder}
+                    editorClassName={activeModalConfig.editorClassName}
                     onClose={closeModal}
                     />
                 )}
