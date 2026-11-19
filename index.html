@@ -128,13 +128,17 @@
                 title: 'Mantras',
                 headerLabel: 'SHUTDOWN ROUTINE ⋆ MANTRAS',
                 storageKey: STORAGE_KEYS.mantras,
-                placeholder: 'Write your mantras and affirmations here...'
+                cloudKey: 'night-mantras',
+                placeholder: 'Write your mantras and affirmations here...',
+                modalWidthClass: 'max-w-3xl',
+                editorPaddingClass: 'px-6 sm:px-10'
             },
             6: {
                 key: 'lessons',
                 title: 'Lessons & Wisdom',
                 headerLabel: 'SHUTDOWN ROUTINE ⋆ LESSONS',
                 storageKey: STORAGE_KEYS.lessons,
+                cloudKey: 'night-lessons',
                 placeholder: 'Capture your lessons, insights, and wisdom here...',
                 editorClassName: 'editor-surface-relaxed'
             }
@@ -281,8 +285,44 @@
             return saved && saved.trim() ? saved : fallback;
         };
 
-        const saveStoredContent = (storageKey, content) => {
+        const getStoredUpdatedAt = (storageKey) => (
+            parseInt(window.localStorage.getItem(`${storageKey}UpdatedAt`) || '0', 10) || 0
+        );
+
+        const saveStoredContent = (storageKey, content, updatedAt = Date.now()) => {
             window.localStorage.setItem(storageKey, content);
+            window.localStorage.setItem(`${storageKey}UpdatedAt`, String(updatedAt));
+        };
+
+        // --- CLOUD SYNC ---
+        // Notes are also kept in the sadhanas API (Cloudflare KV) as { html, updatedAt },
+        // so they follow you across devices. The browser copy stays as the offline fallback;
+        // whichever copy was edited last wins. text/plain keeps the PUT a "simple" CORS
+        // request, so it can still be sent with keepalive while the page is closing.
+        const SYNC_API_URL = 'https://api.sadhanas.app';
+        const SYNC_DELAY_MS = 1200;
+        const SYNC_STATUS_LABELS = {
+            loading: 'Syncing…',
+            saving: 'Saving…',
+            saved: 'Saved ✓',
+            offline: 'Not synced · saved on this device'
+        };
+
+        const fetchCloudNote = async (cloudKey) => {
+            const response = await fetch(`${SYNC_API_URL}/${cloudKey}`, { cache: 'no-store' });
+            if (!response.ok) throw new Error(`GET ${response.status}`);
+            const data = await response.json();
+            return data && typeof data.html === 'string' ? data : null;
+        };
+
+        const pushCloudNote = async (cloudKey, html, updatedAt, keepalive = false) => {
+            const response = await fetch(`${SYNC_API_URL}/${cloudKey}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+                body: JSON.stringify({ html, updatedAt }),
+                keepalive
+            });
+            if (!response.ok) throw new Error(`PUT ${response.status}`);
         };
 
         const ToolbarButton = ({ label, onClick, title, className = '' }) => (
@@ -367,24 +407,109 @@
             </svg>
         );
 
-        const RichTextModal = ({ isOpen, title, headerLabel, storageKey, starterContent, placeholder, editorClassName = '', onClose }) => {
+        const RichTextModal = ({ isOpen, title, headerLabel, storageKey, starterContent, placeholder, cloudKey = null, editorClassName = '', modalWidthClass = 'max-w-5xl', editorPaddingClass = 'px-4 sm:px-5', onClose }) => {
             const editorRef = useRef(null);
             const selectionRef = useRef(null);
             const [isEmpty, setIsEmpty] = useState(false);
 
+            const [syncStatus, setSyncStatus] = useState('loading');
+            const pushTimerRef = useRef(null);
+            const editedRef = useRef(false);
+            const unsyncedRef = useRef(false);
+            const lastSavedRef = useRef(null);
+
+            const showInEditor = (html) => {
+                if (!editorRef.current) return;
+                editorRef.current.innerHTML = html;
+                prepareEditorDom(editorRef.current);
+                lastSavedRef.current = editorRef.current.innerHTML;
+                setIsEmpty(!normalizeEditorHtml(editorRef.current.innerHTML));
+            };
+
+            const pushToCloud = (keepalive = false) => {
+                clearTimeout(pushTimerRef.current);
+                pushTimerRef.current = null;
+                const html = window.localStorage.getItem(storageKey);
+                if (!cloudKey || html === null) return;
+                unsyncedRef.current = true;
+                setSyncStatus('saving');
+                pushCloudNote(cloudKey, html, getStoredUpdatedAt(storageKey) || Date.now(), keepalive)
+                    .then(() => {
+                        if (window.localStorage.getItem(storageKey) === html) {
+                            unsyncedRef.current = false;
+                            setSyncStatus('saved');
+                        }
+                    })
+                    .catch(() => setSyncStatus('offline'));
+            };
+
+            const flushPendingPush = (keepalive = false) => {
+                if (pushTimerRef.current || unsyncedRef.current) pushToCloud(keepalive);
+            };
+
             useEffect(() => {
                 if (!isOpen) return;
-
-                const nextContent = getStoredContent(storageKey, starterContent);
+                document.execCommand('defaultParagraphSeparator', false, 'p');
+                const localContent = getStoredContent(storageKey, starterContent);
                 if (editorRef.current) {
-                    document.execCommand('defaultParagraphSeparator', false, 'p');
-                    editorRef.current.innerHTML = nextContent;
-                    prepareEditorDom(editorRef.current);
-                    setIsEmpty(!normalizeEditorHtml(editorRef.current.innerHTML));
+                    showInEditor(localContent);
                 } else {
-                    setIsEmpty(!normalizeEditorHtml(nextContent));
+                    setIsEmpty(!normalizeEditorHtml(localContent));
                 }
-            }, [isOpen, storageKey, starterContent]);
+                editedRef.current = false;
+
+                if (!cloudKey) return;
+                let cancelled = false;
+                setSyncStatus('loading');
+                fetchCloudNote(cloudKey)
+                    .then((cloudNote) => {
+                        if (cancelled) return;
+                        const localHtml = window.localStorage.getItem(storageKey);
+                        const localUpdatedAt = getStoredUpdatedAt(storageKey);
+                        const cloudUpdatedAt = cloudNote ? Number(cloudNote.updatedAt) || 0 : 0;
+
+                        if (cloudNote && cloudUpdatedAt > localUpdatedAt && !editedRef.current) {
+                            // Cloud is newer: use it, but keep the replaced browser copy just in case.
+                            if (localHtml && localHtml !== cloudNote.html) {
+                                window.localStorage.setItem(`${storageKey}PreviousLocal`, localHtml);
+                            }
+                            saveStoredContent(storageKey, cloudNote.html, cloudUpdatedAt);
+                            showInEditor(cloudNote.html || starterContent);
+                            setSyncStatus('saved');
+                        } else if (localHtml !== null && (!cloudNote || localUpdatedAt > cloudUpdatedAt)) {
+                            // This browser has the newer copy (or the cloud has none yet): upload it.
+                            pushToCloud();
+                        } else {
+                            setSyncStatus('saved');
+                        }
+                    })
+                    .catch(() => {
+                        if (!cancelled) setSyncStatus('offline');
+                    });
+                return () => {
+                    cancelled = true;
+                };
+            }, [isOpen, storageKey, starterContent, cloudKey]);
+
+            useEffect(() => {
+                if (!isOpen) return;
+                const handleVisibilityChange = () => {
+                    if (document.visibilityState === 'hidden') flushPendingPush(true);
+                };
+                const handlePageHide = () => flushPendingPush(true);
+                const handleOnline = () => {
+                    if (unsyncedRef.current) pushToCloud();
+                };
+                document.addEventListener('visibilitychange', handleVisibilityChange);
+                window.addEventListener('pagehide', handlePageHide);
+                window.addEventListener('online', handleOnline);
+                return () => {
+                    document.removeEventListener('visibilitychange', handleVisibilityChange);
+                    window.removeEventListener('pagehide', handlePageHide);
+                    window.removeEventListener('online', handleOnline);
+                    flushPendingPush(true);
+                };
+            }, [isOpen]);
 
             useEffect(() => {
                 if (!isOpen) return;
@@ -407,7 +532,15 @@
                 syncEditorPresentation(editorRef.current);
                 const nextContent = normalizeEditorHtml(editorRef.current.innerHTML);
                 setIsEmpty(!nextContent);
-                saveStoredContent(storageKey, nextContent || starterContent);
+                const valueToStore = nextContent || starterContent;
+                if (valueToStore === lastSavedRef.current) return;
+                lastSavedRef.current = valueToStore;
+                saveStoredContent(storageKey, valueToStore);
+                editedRef.current = true;
+                if (!cloudKey) return;
+                setSyncStatus('saving');
+                clearTimeout(pushTimerRef.current);
+                pushTimerRef.current = setTimeout(() => pushToCloud(), SYNC_DELAY_MS);
             };
 
             const saveSelection = () => {
@@ -459,12 +592,17 @@
                     onClick={onClose}
                 >
                     <div
-                        className="flex h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-white/70 bg-gradient-to-br from-purple-50 via-white to-teal-50 shadow-2xl sm:h-[94vh]"
+                        className={`flex h-[92vh] w-full ${modalWidthClass} flex-col overflow-hidden rounded-[28px] border border-white/70 bg-gradient-to-br from-purple-50 via-white to-teal-50 shadow-2xl sm:h-[94vh]`}
                         onClick={(event) => event.stopPropagation()}
                     >
                         <div className="flex items-center justify-between gap-4 border-b border-purple-100 px-5 py-3 sm:px-6 sm:py-3.5">
                             <div className="pt-0.5">
                                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-purple-500">{headerLabel}</p>
+                                {cloudKey && (
+                                    <p className={`mt-1 text-[11px] font-semibold ${syncStatus === 'offline' ? 'text-rose-500' : 'text-gray-400'}`}>
+                                        {SYNC_STATUS_LABELS[syncStatus]}
+                                    </p>
+                                )}
                             </div>
                             <button
                                 type="button"
@@ -504,7 +642,7 @@
                                     ref={editorRef}
                                     contentEditable
                                     suppressContentEditableWarning
-                                    className={`editor-surface ${editorClassName} h-full overflow-y-auto rounded-2xl px-4 py-4 text-base text-gray-700 sm:px-5 sm:py-5 ${isEmpty ? 'editor-empty' : ''}`}
+                                    className={`editor-surface ${editorClassName} h-full overflow-y-auto rounded-2xl ${editorPaddingClass} py-4 text-base text-gray-700 sm:py-5 ${isEmpty ? 'editor-empty' : ''}`}
                                     data-placeholder={placeholder}
                                     onInput={persistEditorContent}
                                     onKeyDown={handleEditorKeyDown}
@@ -859,9 +997,12 @@
                     title={activeModalConfig.title}
                     headerLabel={activeModalConfig.headerLabel}
                     storageKey={activeModalConfig.storageKey}
+                    cloudKey={activeModalConfig.cloudKey}
                     starterContent={STARTER_CONTENT[activeModalConfig.key]}
                     placeholder={activeModalConfig.placeholder}
                     editorClassName={activeModalConfig.editorClassName}
+                    modalWidthClass={activeModalConfig.modalWidthClass}
+                    editorPaddingClass={activeModalConfig.editorPaddingClass}
                     onClose={closeModal}
                     />
                 )}
