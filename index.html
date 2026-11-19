@@ -214,8 +214,25 @@
             });
         };
 
+        const EDITOR_BLOCK_TAGS = ['p', 'ul', 'ol', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote'];
+
+        // Chrome copies Tailwind's --tw-* variables into inline styles when text is copied or
+        // pasted inside the editor (~1.2 KB per paragraph). They change nothing visually.
+        const stripTailwindStyles = (root) => {
+            root.querySelectorAll('[style]').forEach((element) => {
+                const cleaned = element.getAttribute('style')
+                    .split(';')
+                    .map((declaration) => declaration.trim())
+                    .filter((declaration) => declaration && !declaration.startsWith('--tw-'))
+                    .join('; ');
+                if (cleaned) element.setAttribute('style', cleaned);
+                else element.removeAttribute('style');
+            });
+        };
+
         const normalizeEditorStructure = (root) => {
             if (!root) return;
+            stripTailwindStyles(root);
 
             const children = Array.from(root.childNodes);
             if (children.length === 0) {
@@ -258,14 +275,33 @@
                     return;
                 }
 
-                if (tagName !== 'p' && tagName !== 'ul') {
+                if (!EDITOR_BLOCK_TAGS.includes(tagName)) {
                     const paragraph = document.createElement('p');
                     root.replaceChild(paragraph, node);
                     paragraph.appendChild(node);
                 }
             });
 
-            if (!root.querySelector('p, ul')) {
+            // A <p> holding another block (e.g. a heading pasted from Google Docs) is invalid HTML:
+            // each time the note is loaded the browser splits it and adds empty <p>s, which piled
+            // up by the hundreds. Unwrap those, then drop childless <p>s (a typed blank line is
+            // <p><br></p> and is kept).
+            Array.from(root.querySelectorAll('p')).forEach((paragraph) => {
+                const holdsBlock = Array.from(paragraph.children).some((child) => {
+                    const childTag = child.tagName.toLowerCase();
+                    return childTag === 'div' || EDITOR_BLOCK_TAGS.includes(childTag);
+                });
+                if (!holdsBlock || !paragraph.parentNode) return;
+                while (paragraph.firstChild) {
+                    paragraph.parentNode.insertBefore(paragraph.firstChild, paragraph);
+                }
+                paragraph.remove();
+            });
+            Array.from(root.querySelectorAll('p')).forEach((paragraph) => {
+                if (!paragraph.childNodes.length) paragraph.remove();
+            });
+
+            if (!root.querySelector(EDITOR_BLOCK_TAGS.join(', '))) {
                 root.innerHTML = '<p><br></p>';
             }
         };
@@ -316,11 +352,12 @@
         };
 
         const pushCloudNote = async (cloudKey, html, updatedAt, keepalive = false) => {
+            const body = JSON.stringify({ html, updatedAt });
             const response = await fetch(`${SYNC_API_URL}/${cloudKey}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-                body: JSON.stringify({ html, updatedAt }),
-                keepalive
+                body,
+                keepalive: keepalive && body.length < 60000
             });
             if (!response.ok) throw new Error(`PUT ${response.status}`);
         };
@@ -507,7 +544,7 @@
                     document.removeEventListener('visibilitychange', handleVisibilityChange);
                     window.removeEventListener('pagehide', handlePageHide);
                     window.removeEventListener('online', handleOnline);
-                    flushPendingPush(true);
+                    flushPendingPush();
                 };
             }, [isOpen]);
 
@@ -596,10 +633,10 @@
                         onClick={(event) => event.stopPropagation()}
                     >
                         <div className="flex items-center justify-between gap-4 border-b border-purple-100 px-5 py-3 sm:px-6 sm:py-3.5">
-                            <div className="pt-0.5">
+                            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 pt-0.5">
                                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-purple-500">{headerLabel}</p>
                                 {cloudKey && (
-                                    <p className={`mt-1 text-[11px] font-semibold ${syncStatus === 'offline' ? 'text-rose-500' : 'text-gray-400'}`}>
+                                    <p className={`text-[11px] font-semibold ${syncStatus === 'offline' ? 'text-rose-500' : 'text-gray-400'}`}>
                                         {SYNC_STATUS_LABELS[syncStatus]}
                                     </p>
                                 )}
@@ -614,7 +651,7 @@
                             </button>
                         </div>
 
-                        <div className="flex min-h-0 flex-1 flex-col px-4 py-3 sm:px-6 sm:py-4">
+                        <div className="flex min-h-0 flex-1 flex-col px-4 pt-1.5 pb-3 sm:px-6 sm:pt-2 sm:pb-4">
                             <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl bg-white/80 p-2 shadow-sm">
                                 <ToolbarButton label="B" title="Bold" onClick={() => runCommand('bold')} className="font-bold" />
                                 <ToolbarButton label="I" title="Italic" onClick={() => runCommand('italic')} className="italic" />
